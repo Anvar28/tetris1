@@ -34,7 +34,7 @@ namespace tetris1
             private const int border = 5;
 
             private const int figureSize = 3;
-            private const int figureSizeArray = 4;
+            private const int figureSizeArray = figureSize+1;
             private sBlock[,] figure = new sBlock[figureSizeArray, figureSizeArray];
             private Point figureXY; 
 
@@ -42,34 +42,28 @@ namespace tetris1
 
             public tGlass()
             {
+                init();
+            }
 
+            public void init()
+            {
                 figureXY.X = 0;
-                figureXY.Y = 16;
+                figureXY.Y = 0;
 
                 for (int i = 0; i < width; i++)
-                {
                     for (int j = 0; j < height; j++)
-                    {
                         blocks[i, j].init();
-                    }                       
-                }
 
-                for (int i = 0; i <= figureSize; i++)
-                {
-                    for (int j = 0; j <= figureSize; j++)
-                    {
-                        figure[i, j].init();
-                    }
-                }
+                newFigure();
 
-                figure[1, 0].empty = false;
-                figure[1, 0].color = Color.Aqua;
-                figure[1, 1].empty = false;
-                figure[1, 1].color = Color.Aqua;
-                figure[1, 2].empty = false;
-                figure[1, 2].color = Color.Aqua;
-                figure[2, 1].empty = false;
-                figure[2, 1].color = Color.Aqua;
+                //figure[1, 0].empty = false;
+                //figure[1, 0].color = Color.Aqua;
+                //figure[1, 1].empty = false;
+                //figure[1, 1].color = Color.Aqua;
+                //figure[1, 2].empty = false;
+                //figure[1, 2].color = Color.Aqua;
+                //figure[2, 1].empty = false;
+                //figure[2, 1].color = Color.Aqua;
             }
 
             /// <summary>
@@ -78,15 +72,17 @@ namespace tetris1
             /// <param name="x">Координаты блока не более ширины стакана</param>
             /// <param name="y">Координаты блока на более высоты стакана</param>
             /// <param name="empty">Пустой блок, фон</param>
-            private void drawBlock(int x, int y, Color color, Graphics canvas, bool empty)
+            private void drawBlock(int x, int y, Color color, Graphics canvas, bool empty, bool k = false)
             {
                 if (x < width && y < height)
                 {
-                   // Pen pen = new Pen(color, 1);
+                    Pen pen = new Pen(Color.Red, 1);
                     Brush br = empty ? Brushes.Gray : new SolidBrush(color);
                     Rectangle rect = new Rectangle(border + blockSizeWithBorder * x, border + blockSizeWithBorder * y, blockSize, blockSize);
 
                     canvas.FillRectangle(br, rect);
+                    if (k)
+                        canvas.DrawRectangle(pen, rect);
                 }
             }
 
@@ -99,69 +95,82 @@ namespace tetris1
 
                 // Прорисовка блоков стакана
                 for (int i = 0; i < width; i++)
-                {
                     for (int j = 0; j < height; j++)
-                    {
                         drawBlock(i, j, blocks[i, j].color, canvas, blocks[i, j].empty);
-                    }
-                }
 
                 // Прорисовка текущей фигуры
-                for (int i = 0; i < figureSize; i++)
-                {
-                    for (int j = 0; j < figureSize; j++)
-                    {
+                for (int i = 0; i <= figureSize; i++)
+                    for (int j = 0; j <= figureSize; j++)
                         if (!figure[i, j].empty)
-                        {
                             drawBlock(figureXY.X + i, figureXY.Y + j, figure[i, j].color, canvas, figure[i, j].empty);
-                        }                        
-                    }
-                }
 
             }
 
             /// <summary>
             /// Поворот фигуры против часовой стрелки
             /// </summary>             
-            void turnL()
+            public void turnL()
             {
-                sBlock[,] temp = new sBlock[figureSizeArray, figureSizeArray];
+                // Поворот фигуры во временном массиве
+                sBlock[,] figureTemp = new sBlock[figureSizeArray, figureSizeArray];
                 for (int i = 0; i <= figureSize; i++)
-                {
                     for (int j = 0; j <= figureSize; j++)
-                    {
-                        temp[j, i] = blocks[i, figureSize - j];
-                    }
-                }
-                for (int i = 0; i <= figureSize; i++)
+                        figureTemp[i, j] = figure[figureSize-j, i];
+
+                // Проверка не накладываются ли блоки фигуры на блоки в стакане, если нет, то переносим
+                // фигуру из временного массива в основной
+                if (canTurn(figureTemp, figureXY))
                 {
-                    for (int j = 0; j <= figureSize; j++)
-                    {
-                        blocks[i, j] = temp[j, i];
-                    }
+                    for (int i = 0; i <= figureSize; i++)
+                        for (int j = 0; j <= figureSize; j++)
+                            figure[i, j] = figureTemp[i, j];
                 }
             }
 
             /// <summary>
-            /// Поворот фигуры по часовой стрелки
+            ///  Если повернутая фигура с учетом координат выходит за рамки стакана то 
+            ///  необходимо поменять координаты
             /// </summary>
-            void turnR()
+            public bool canTurn(sBlock[,] figureTemp, Point figureXYTemp)
             {
-                sBlock[,] temp = new sBlock[figureSizeArray, figureSizeArray];
+                bool result = true;
+                bool k;
+                // Проверка фигуры за выход за рамки стакана
                 for (int i = 0; i <= figureSize; i++)
                 {
+                    k = false;
                     for (int j = 0; j <= figureSize; j++)
-                    {
-                        temp[j, i] = blocks[figureSize - i, j];
+                        if (!figureTemp[i, j].empty)
+                        {
+                            k = true;
+                            break;
+                        }
+
+                    if (k)
+                    {                                       
+                        if (figureXYTemp.X + i < 0)
+                            figureXYTemp.X = 0;
+
+                        if (figureXYTemp.X + i >= width)
+                            figureXYTemp.X = width-i;
                     }
                 }
+                // Проверка не накладываются ли блоки фигуры на блоки в стакане
                 for (int i = 0; i <= figureSize; i++)
-                {
                     for (int j = 0; j <= figureSize; j++)
-                    {
-                        blocks[i, j] = temp[j, i];
-                    }
+                        if (!figureTemp[i, j].empty)
+                            if (!blocks[figureXYTemp.X + i, figureXYTemp.Y + j].empty)
+                            {
+                                result = false;
+                                break;
+                            }
+
+                if (result)
+                {
+                    figureXY = figureXYTemp;
                 }
+
+                return result;
             }
 
             /// <summary>
@@ -178,10 +187,9 @@ namespace tetris1
                     int j;
                     // Есть ли у фигуры в колонке не пустой блок
                     for (j = figureSize; j >= 0; j--)
-                    {
                         if (!figure[i, j].empty)
                             break;
-                    }
+
                     if (j > -1)
                     {
                         if (figureXY.Y + j + 1 >= height) // уперлись в дно стакана
@@ -207,15 +215,9 @@ namespace tetris1
                     // Фиксация фигуры в стакане
                     int j;
                     for (int i = 0; i <= figureSize; i++)
-                    {
                         for (j = 0; j <= figureSize; j++)
-                        {
                             if ((!figure[i, j].empty) && (figureXY.X + i < width) && (figureXY.Y + j < height))
-                            {
                                 blocks[figureXY.X + i, figureXY.Y + j] = figure[i, j];
-                            }                            
-                        }
-                    }
 
                     // Проверка нет ли полных строк в стакане
                     j = height;
@@ -233,13 +235,9 @@ namespace tetris1
                         if (stringFull)
                         {
                             // смещаем все вышележащие строки вниз
-                            for (int j2 = j - 1; j2 < 0; j2--)
-                            {
+                            for (int j2 = j - 1; j2 > 0; j2--)
                                 for (int i2 = 0; i2 < width; i2++)
-                                {
-                                    blocks[i2, j2] = blocks[i2, j2 + 1];
-                                }
-                            }
+                                    blocks[i2, j2+1] = blocks[i2, j2];
 
                             // т.к. вышележащая строка смещается вниз, а она тоже может быть полной
                             // то нужно текущую строку проверить еще раз, увеличим счетчик
@@ -253,7 +251,7 @@ namespace tetris1
 
             void newFigure()
             {
-                figureXY.X = 0;
+                figureXY.X = 4;
                 figureXY.Y = 0;
 
                 byte colorCount = 6;
@@ -264,20 +262,16 @@ namespace tetris1
 
                 // Очистка массива
                 for (int i = 0; i <= figureSize; i++)
-                {
                     for (int j = 0; j <= figureSize; j++)
-                    {
-                        figure[i, j].empty = true;
-                    }
-                }
+                        figure[i, j].init();
 
-                figure[0, 0].empty = false;
-                figure[0, 0].color = color;
-                figure[1, 0].empty = false;
-                figure[1, 0].color = color;
-                figure[1, 1].empty = false;
-                figure[1, 1].color = color;
-                return;
+                //figure[0, 0].empty = false;
+                //figure[0, 0].color = color;
+                //figure[1, 0].empty = false;
+                //figure[1, 0].color = color;
+                //figure[1, 1].empty = false;
+                //figure[1, 1].color = color;
+                //return;
 
                 switch (rnd.Next(0, 7))
                 {
@@ -315,14 +309,14 @@ namespace tetris1
                         break;
 
                     case 3:  // I
-                        figure[2, 0].empty = false;
-                        figure[2, 0].color = color;
-                        figure[2, 1].empty = false;
-                        figure[2, 1].color = color;
-                        figure[2, 2].empty = false;
-                        figure[2, 2].color = color;
-                        figure[2, 3].empty = false;
-                        figure[2, 3].color = color;
+                        figure[1, 0].empty = false;
+                        figure[1, 0].color = color;
+                        figure[1, 1].empty = false;
+                        figure[1, 1].color = color;
+                        figure[1, 2].empty = false;
+                        figure[1, 2].color = color;
+                        figure[1, 3].empty = false;
+                        figure[1, 3].color = color;
                         break;
 
                     case 4:  // o
@@ -365,11 +359,35 @@ namespace tetris1
 
             public void left()
             {
-
+                // Проверим в какой колонке есть заполненный блок
+                int minI = 4;
+                for (int i = 0; i <= figureSize; i++)
+                    for (int j = 0; j <= figureSize; j++)
+                        if (!figure[i, j].empty)
+                            minI = minI > i ? i : minI;
+                
+                if (figureXY.X - 1 + minI >= 0)
+                    figureXY.X--;
             }
+
+            public void right()
+            {
+                // Проверим в какой колонке есть заполненный блок
+                int maxJ = 0;
+                for (int i = 0; i <= figureSize; i++)
+                    for (int j = 0; j <= figureSize; j++)
+                        if (!figure[i, j].empty)
+                            maxJ = maxJ < i ? i : maxJ;
+
+                if (figureXY.X + maxJ + 1 < width)
+                    figureXY.X++;
+            }
+
         }
 
         tGlass glass;
+        int oldInterval;
+        const int maxSpeed = 25;
 
         public Form1()
         {
@@ -393,5 +411,48 @@ namespace tetris1
         {
             glass.draw(e.Graphics);
         }
+
+        private void Form1_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
+        {
+            e.IsInputKey = true;
+        }
+
+        private void Form1_KeyDown(object sender, KeyEventArgs e)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Left:
+                    glass.left();
+                    break;
+                case Keys.Right:
+                    glass.right();
+                    break;
+                case Keys.Space:
+                    glass.turnL();
+                    break;
+                case Keys.Down:
+                    if (timer1.Interval != 50)
+                    {
+                        oldInterval = timer1.Interval;
+                        timer1.Interval = 50;
+                    }
+                    break;
+            }
+            pictureBox1.Invalidate();
+        }
+
+        private void Form1_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Down)
+            {
+                timer1.Interval = oldInterval;
+            }
+        }
+
+        private void новаяИграToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            glass.init();
+        }
+
     }
 }
