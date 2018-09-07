@@ -27,18 +27,22 @@ namespace tetris1
 
         class tGlass
         {
-            private const int width = 10;
-            private const int height = 20;
-            private const int blockSize = 28;
-            private const int blockSizeWithBorder = 30;
-            private const int border = 5;
+            private const int _width = 10;
+            private const int _height = 20;
+            private const int _blockSize = 28;
+            private const int _blockSizeWithBorder = 30;
+            private const int _border = 5;
 
-            private const int figureSize = 3;
-            private const int figureSizeArray = figureSize+1;
-            private sBlock[,] figure = new sBlock[figureSizeArray, figureSizeArray];
-            private Point figureXY; 
+            private const int _figureSize = 3;
+            private const int _figureSizeArray = _figureSize+1;
+            private sBlock[,] _figure = new sBlock[_figureSizeArray, _figureSizeArray];
+            private Point _figureXY;
+            private int _score;
+            public int score { get { return _score; } }
+            private bool _gameOver;
+            public bool gameOver { get { return _gameOver; } }
 
-            private sBlock[,] blocks = new sBlock[width, height];
+            private sBlock[,] blocks = new sBlock[_width, _height];
 
             public tGlass()
             {
@@ -47,23 +51,15 @@ namespace tetris1
 
             public void init()
             {
-                figureXY.X = 0;
-                figureXY.Y = 0;
+                _figureXY.X = 0;
+                _figureXY.Y = 0;
+                _gameOver = false;
 
-                for (int i = 0; i < width; i++)
-                    for (int j = 0; j < height; j++)
+                for (int i = 0; i < _width; i++)
+                    for (int j = 0; j < _height; j++)
                         blocks[i, j].init();
 
                 newFigure();
-
-                //figure[1, 0].empty = false;
-                //figure[1, 0].color = Color.Aqua;
-                //figure[1, 1].empty = false;
-                //figure[1, 1].color = Color.Aqua;
-                //figure[1, 2].empty = false;
-                //figure[1, 2].color = Color.Aqua;
-                //figure[2, 1].empty = false;
-                //figure[2, 1].color = Color.Aqua;
             }
 
             /// <summary>
@@ -74,11 +70,11 @@ namespace tetris1
             /// <param name="empty">Пустой блок, фон</param>
             private void drawBlock(int x, int y, Color color, Graphics canvas, bool empty, bool k = false)
             {
-                if (x < width && y < height)
+                if (x < _width && y < _height)
                 {
                     Pen pen = new Pen(Color.Red, 1);
-                    Brush br = empty ? Brushes.Gray : new SolidBrush(color);
-                    Rectangle rect = new Rectangle(border + blockSizeWithBorder * x, border + blockSizeWithBorder * y, blockSize, blockSize);
+                    Brush br = empty ? Brushes.Silver : new SolidBrush(color);
+                    Rectangle rect = new Rectangle(_border + _blockSizeWithBorder * x, _border + _blockSizeWithBorder * y, _blockSize, _blockSize);
 
                     canvas.FillRectangle(br, rect);
                     if (k)
@@ -94,15 +90,15 @@ namespace tetris1
                 Pen penEmpty = new Pen(Color.Gray, 1);
 
                 // Прорисовка блоков стакана
-                for (int i = 0; i < width; i++)
-                    for (int j = 0; j < height; j++)
+                for (int i = 0; i < _width; i++)
+                    for (int j = 0; j < _height; j++)
                         drawBlock(i, j, blocks[i, j].color, canvas, blocks[i, j].empty);
 
                 // Прорисовка текущей фигуры
-                for (int i = 0; i <= figureSize; i++)
-                    for (int j = 0; j <= figureSize; j++)
-                        if (!figure[i, j].empty)
-                            drawBlock(figureXY.X + i, figureXY.Y + j, figure[i, j].color, canvas, figure[i, j].empty);
+                for (int i = 0; i <= _figureSize; i++)
+                    for (int j = 0; j <= _figureSize; j++)
+                        if (!_figure[i, j].empty)
+                            drawBlock(_figureXY.X + i, _figureXY.Y + j, _figure[i, j].color, canvas, _figure[i, j].empty);
 
             }
 
@@ -112,63 +108,37 @@ namespace tetris1
             public void turnL()
             {
                 // Поворот фигуры во временном массиве
-                sBlock[,] figureTemp = new sBlock[figureSizeArray, figureSizeArray];
-                for (int i = 0; i <= figureSize; i++)
-                    for (int j = 0; j <= figureSize; j++)
-                        figureTemp[i, j] = figure[figureSize-j, i];
+                sBlock[,] figureTemp = new sBlock[_figureSizeArray, _figureSizeArray];
+                for (int i = 0; i <= _figureSize; i++)
+                    for (int j = 0; j <= _figureSize; j++)
+                        figureTemp[i, j] = _figure[_figureSize-j, i];
 
                 // Проверка не накладываются ли блоки фигуры на блоки в стакане, если нет, то переносим
                 // фигуру из временного массива в основной
-                if (canTurn(figureTemp, figureXY))
+                if (!checkCollision(figureTemp, _figureXY))
                 {
-                    for (int i = 0; i <= figureSize; i++)
-                        for (int j = 0; j <= figureSize; j++)
-                            figure[i, j] = figureTemp[i, j];
+                    for (int i = 0; i <= _figureSize; i++)
+                        for (int j = 0; j <= _figureSize; j++)
+                            _figure[i, j] = figureTemp[i, j];
                 }
             }
 
             /// <summary>
-            ///  Если повернутая фигура с учетом координат выходит за рамки стакана то 
-            ///  необходимо поменять координаты
+            ///  Проверка не накладываются ли блоки фигуры на блоки в стакане
             /// </summary>
-            public bool canTurn(sBlock[,] figureTemp, Point figureXYTemp)
+            public bool checkCollision(sBlock[,] figureTemp, Point figureXYTemp)
             {
-                bool result = true;
-                bool k;
-                // Проверка фигуры за выход за рамки стакана
-                for (int i = 0; i <= figureSize; i++)
-                {
-                    k = false;
-                    for (int j = 0; j <= figureSize; j++)
-                        if (!figureTemp[i, j].empty)
-                        {
-                            k = true;
-                            break;
-                        }
-
-                    if (k)
-                    {                                       
-                        if (figureXYTemp.X + i < 0)
-                            figureXYTemp.X = 0;
-
-                        if (figureXYTemp.X + i >= width)
-                            figureXYTemp.X = width-i;
-                    }
-                }
+                bool result = false;
                 // Проверка не накладываются ли блоки фигуры на блоки в стакане
-                for (int i = 0; i <= figureSize; i++)
-                    for (int j = 0; j <= figureSize; j++)
+                for (int i = 0; i <= _figureSize; i++)
+                    for (int j = 0; j <= _figureSize; j++)
                         if (!figureTemp[i, j].empty)
                             if (!blocks[figureXYTemp.X + i, figureXYTemp.Y + j].empty)
                             {
-                                result = false;
+                                result = true;
                                 break;
                             }
 
-                if (result)
-                {
-                    figureXY = figureXYTemp;
-                }
 
                 return result;
             }
@@ -182,22 +152,22 @@ namespace tetris1
 
                 // Проверка нет ли под фигурой других блоков в стакане
                 bool wayFree = true;
-                for (int i = 0; i <= figureSize; i++)
+                for (int i = 0; i <= _figureSize; i++)
                 {
                     int j;
                     // Есть ли у фигуры в колонке не пустой блок
-                    for (j = figureSize; j >= 0; j--)
-                        if (!figure[i, j].empty)
+                    for (j = _figureSize; j >= 0; j--)
+                        if (!_figure[i, j].empty)
                             break;
 
                     if (j > -1)
                     {
-                        if (figureXY.Y + j + 1 >= height) // уперлись в дно стакана
+                        if (_figureXY.Y + j + 1 >= _height) // уперлись в дно стакана
                         {
                             wayFree = false;
                             break;
                         }
-                        if (!blocks[figureXY.X + i, figureXY.Y + j + 1].empty)
+                        if (!blocks[_figureXY.X + i, _figureXY.Y + j + 1].empty) // ниже лежит блок в стакане
                         {
                             wayFree = false;
                             break;
@@ -208,26 +178,26 @@ namespace tetris1
                 if (wayFree)
                 {
                     // Сдвиг фигуры на одну строку вниз
-                    figureXY.Y++;
+                    _figureXY.Y++;
                 }
                 else
                 {
                     // Фиксация фигуры в стакане
                     int j;
-                    for (int i = 0; i <= figureSize; i++)
-                        for (j = 0; j <= figureSize; j++)
-                            if ((!figure[i, j].empty) && (figureXY.X + i < width) && (figureXY.Y + j < height))
-                                blocks[figureXY.X + i, figureXY.Y + j] = figure[i, j];
+                    for (int i = 0; i <= _figureSize; i++)
+                        for (j = 0; j <= _figureSize; j++)
+                            if ((!_figure[i, j].empty) && (_figureXY.X + i < _width) && (_figureXY.Y + j < _height))
+                                blocks[_figureXY.X + i, _figureXY.Y + j] = _figure[i, j];
 
                     // Проверка нет ли полных строк в стакане
-                    j = height;
+                    j = _height;
                     while (j > 0)
                     {
                         j--;
 
                         bool stringFull = true;
                         int i = 0;
-                        while (i < width && stringFull)
+                        while (i < _width && stringFull)
                         {
                             stringFull = !blocks[i, j].empty;
                             i++;
@@ -236,12 +206,15 @@ namespace tetris1
                         {
                             // смещаем все вышележащие строки вниз
                             for (int j2 = j - 1; j2 > 0; j2--)
-                                for (int i2 = 0; i2 < width; i2++)
+                                for (int i2 = 0; i2 < _width; i2++)
                                     blocks[i2, j2+1] = blocks[i2, j2];
 
                             // т.к. вышележащая строка смещается вниз, а она тоже может быть полной
                             // то нужно текущую строку проверить еще раз, увеличим счетчик
                             j++;
+
+                            // Счетчик очков
+                            _score++;
                         }
                     }
 
@@ -249,10 +222,13 @@ namespace tetris1
                 }
             }
 
+            /// <summary>
+            /// Генерация новой фигуры
+            /// </summary>
             void newFigure()
             {
-                figureXY.X = 4;
-                figureXY.Y = 0;
+                _figureXY.X = 4;
+                _figureXY.Y = 0;
 
                 byte colorCount = 6;
                 Color[] colorArray = new Color[6] { Color.Red, Color.White, Color.Black, Color.Azure, Color.Blue, Color.Green };
@@ -261,126 +237,157 @@ namespace tetris1
                 Color color = colorArray[rnd.Next(0, colorCount)];
 
                 // Очистка массива
-                for (int i = 0; i <= figureSize; i++)
-                    for (int j = 0; j <= figureSize; j++)
-                        figure[i, j].init();
-
-                //figure[0, 0].empty = false;
-                //figure[0, 0].color = color;
-                //figure[1, 0].empty = false;
-                //figure[1, 0].color = color;
-                //figure[1, 1].empty = false;
-                //figure[1, 1].color = color;
-                //return;
+                for (int i = 0; i <= _figureSize; i++)
+                    for (int j = 0; j <= _figureSize; j++)
+                        _figure[i, j].init();
 
                 switch (rnd.Next(0, 7))
                 {
                     case 0:  // L
-                        figure[1, 0].empty = false;
-                        figure[1, 0].color = color;
-                        figure[1, 1].empty = false;
-                        figure[1, 1].color = color;
-                        figure[1, 2].empty = false;
-                        figure[1, 2].color = color;
-                        figure[2, 2].empty = false;
-                        figure[2, 2].color = color;
+                        _figure[1, 0].empty = false;
+                        _figure[1, 0].color = color;
+                        _figure[1, 1].empty = false;
+                        _figure[1, 1].color = color;
+                        _figure[1, 2].empty = false;
+                        _figure[1, 2].color = color;
+                        _figure[2, 2].empty = false;
+                        _figure[2, 2].color = color;
                         break;
 
                     case 1:  // J
-                        figure[2, 0].empty = false;
-                        figure[2, 0].color = color;
-                        figure[2, 1].empty = false;
-                        figure[2, 1].color = color;
-                        figure[2, 2].empty = false;
-                        figure[2, 2].color = color;
-                        figure[1, 2].empty = false;
-                        figure[1, 2].color = color;
+                        _figure[2, 0].empty = false;
+                        _figure[2, 0].color = color;
+                        _figure[2, 1].empty = false;
+                        _figure[2, 1].color = color;
+                        _figure[2, 2].empty = false;
+                        _figure[2, 2].color = color;
+                        _figure[1, 2].empty = false;
+                        _figure[1, 2].color = color;
                         break;
 
                     case 2:  // T
-                        figure[2, 0].empty = false;
-                        figure[2, 0].color = color;
-                        figure[2, 1].empty = false;
-                        figure[2, 1].color = color;
-                        figure[2, 2].empty = false;
-                        figure[2, 2].color = color;
-                        figure[1, 1].empty = false;
-                        figure[1, 1].color = color;
+                        _figure[2, 0].empty = false;
+                        _figure[2, 0].color = color;
+                        _figure[2, 1].empty = false;
+                        _figure[2, 1].color = color;
+                        _figure[2, 2].empty = false;
+                        _figure[2, 2].color = color;
+                        _figure[1, 1].empty = false;
+                        _figure[1, 1].color = color;
                         break;
 
                     case 3:  // I
-                        figure[1, 0].empty = false;
-                        figure[1, 0].color = color;
-                        figure[1, 1].empty = false;
-                        figure[1, 1].color = color;
-                        figure[1, 2].empty = false;
-                        figure[1, 2].color = color;
-                        figure[1, 3].empty = false;
-                        figure[1, 3].color = color;
+                        _figure[1, 0].empty = false;
+                        _figure[1, 0].color = color;
+                        _figure[1, 1].empty = false;
+                        _figure[1, 1].color = color;
+                        _figure[1, 2].empty = false;
+                        _figure[1, 2].color = color;
+                        _figure[1, 3].empty = false;
+                        _figure[1, 3].color = color;
                         break;
 
                     case 4:  // o
-                        figure[1, 1].empty = false;
-                        figure[1, 1].color = color;
-                        figure[2, 1].empty = false;
-                        figure[2, 1].color = color;
-                        figure[2, 2].empty = false;
-                        figure[2, 2].color = color;
-                        figure[1, 2].empty = false;
-                        figure[1, 2].color = color;
+                        _figure[1, 1].empty = false;
+                        _figure[1, 1].color = color;
+                        _figure[2, 1].empty = false;
+                        _figure[2, 1].color = color;
+                        _figure[2, 2].empty = false;
+                        _figure[2, 2].color = color;
+                        _figure[1, 2].empty = false;
+                        _figure[1, 2].color = color;
                         break;
 
                     case 5:  // s
-                        figure[0, 2].empty = false;
-                        figure[0, 2].color = color;
-                        figure[1, 1].empty = false;
-                        figure[1, 1].color = color;
-                        figure[1, 2].empty = false;
-                        figure[1, 2].color = color;
-                        figure[2, 1].empty = false;
-                        figure[2, 1].color = color;
+                        _figure[0, 2].empty = false;
+                        _figure[0, 2].color = color;
+                        _figure[1, 1].empty = false;
+                        _figure[1, 1].color = color;
+                        _figure[1, 2].empty = false;
+                        _figure[1, 2].color = color;
+                        _figure[2, 1].empty = false;
+                        _figure[2, 1].color = color;
                         break;
 
                     case 6:  // z
-                        figure[0, 1].empty = false;
-                        figure[0, 1].color = color;
-                        figure[1, 1].empty = false;
-                        figure[1, 1].color = color;
-                        figure[1, 2].empty = false;
-                        figure[1, 2].color = color;
-                        figure[2, 2].empty = false;
-                        figure[2, 2].color = color;
+                        _figure[0, 1].empty = false;
+                        _figure[0, 1].color = color;
+                        _figure[1, 1].empty = false;
+                        _figure[1, 1].color = color;
+                        _figure[1, 2].empty = false;
+                        _figure[1, 2].color = color;
+                        _figure[2, 2].empty = false;
+                        _figure[2, 2].color = color;
                         break;
 
                     default:
                         break;
                 }
+
+                // Проверка не наложится ли фигура на другие блоки в стакане
+                if (checkCollision(_figure, _figureXY))
+                {
+                    _gameOver = true;
+                }
             }
 
+            /// <summary>
+            /// Передвижение фигуры влево с проверкой
+            /// </summary>
             public void left()
             {
-                // Проверим в какой колонке есть заполненный блок
-                int minI = 4;
-                for (int i = 0; i <= figureSize; i++)
-                    for (int j = 0; j <= figureSize; j++)
-                        if (!figure[i, j].empty)
-                            minI = minI > i ? i : minI;
-                
-                if (figureXY.X - 1 + minI >= 0)
-                    figureXY.X--;
+                Point newFigureXY = _figureXY;
+                newFigureXY.X--;
+                if (checkFigureMove(newFigureXY))
+                    if (!checkCollision(_figure, newFigureXY))
+                        _figureXY = newFigureXY;
             }
 
+            /// <summary>
+            /// Передвижение фигуры вправо с проверкой
+            /// </summary>
             public void right()
             {
-                // Проверим в какой колонке есть заполненный блок
-                int maxJ = 0;
-                for (int i = 0; i <= figureSize; i++)
-                    for (int j = 0; j <= figureSize; j++)
-                        if (!figure[i, j].empty)
-                            maxJ = maxJ < i ? i : maxJ;
+                Point newFigureXY = _figureXY;
+                newFigureXY.X++;
+                if (checkFigureMove(newFigureXY))
+                    if (!checkCollision(_figure, newFigureXY))
+                        _figureXY = newFigureXY;
+            }
 
-                if (figureXY.X + maxJ + 1 < width)
-                    figureXY.X++;
+            /// <summary>
+            /// Возвращает минимальную и максимальную колоки где есть не пустые блоки в фигуре
+            /// </summary>
+            /// <returns></returns>
+            (int min, int max) getFigureLimit()
+            {
+                int maxI = 0, minI = _figureSize;
+
+                for (int i = 0; i <= _figureSize; i++)
+                    for (int j = 0; j <= _figureSize; j++)
+                        if (!_figure[i, j].empty)
+                        {
+                            maxI = maxI < i ? i : maxI;
+                            minI = minI > i ? i : minI;
+                        }
+                return (min: minI, max: maxI);
+            }
+
+            /// <summary>
+            /// Проверка не выходит ли фигура за границы
+            /// </summary>
+            bool checkFigureMove(Point newFigureXY)
+            {
+                bool result = true;
+                (int min, int max) figureLimit = getFigureLimit();
+
+                if (newFigureXY.X + figureLimit.min < 0)
+                    result = false;
+
+                if (newFigureXY.X + figureLimit.max >= _width)
+                    result = false;
+
+                return result;
             }
 
         }
@@ -388,6 +395,7 @@ namespace tetris1
         tGlass glass;
         int oldInterval;
         const int maxSpeed = 25;
+        
 
         public Form1()
         {
@@ -405,6 +413,12 @@ namespace tetris1
         {
             glass.step();
             pictureBox1.Invalidate();
+            lScore.Text = glass.score.ToString();
+            if (glass.gameOver)
+            {
+                timer1.Enabled = false;
+                lGameOver.Visible = true;
+            }
         }
 
         private void pictureBox1_Paint(object sender, PaintEventArgs e)
@@ -427,14 +441,14 @@ namespace tetris1
                 case Keys.Right:
                     glass.right();
                     break;
-                case Keys.Space:
+                case Keys.Up:
                     glass.turnL();
                     break;
                 case Keys.Down:
-                    if (timer1.Interval != 50)
+                    if (timer1.Interval != maxSpeed)
                     {
                         oldInterval = timer1.Interval;
-                        timer1.Interval = 50;
+                        timer1.Interval = maxSpeed;
                     }
                     break;
             }
@@ -449,9 +463,31 @@ namespace tetris1
             }
         }
 
-        private void новаяИграToolStripMenuItem_Click(object sender, EventArgs e)
+        private void lNewGame_MouseHover(object sender, EventArgs e)
+        {
+            (sender as Label).BackColor = Color.Silver;
+        }
+
+        private void lNewGame_MouseLeave(object sender, EventArgs e)
+        {
+            (sender as Label).BackColor = SystemColors.Control;
+        }
+
+        private void lNewGame_Click(object sender, EventArgs e)
         {
             glass.init();
+            timer1.Enabled = true;
+            BackColor = SystemColors.Control;
+            lGameOver.Visible = false;
+        }
+
+        private void lPausa_Click(object sender, EventArgs e)
+        {
+            if (!glass.gameOver)
+            {
+                timer1.Enabled = !timer1.Enabled;
+                BackColor = timer1.Enabled ? SystemColors.Control : Color.Silver;
+            }
         }
 
     }

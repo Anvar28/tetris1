@@ -8,6 +8,13 @@ namespace test
 {
     class Program
     {
+        static (int minf, int max) getFigureMinMax()
+        {
+            int maxJ = 1, minJ = 2;
+
+            return (minf: minJ, max: maxJ);
+        }
+
         static void Main(string[] args)
         {
 
@@ -41,9 +48,9 @@ namespace test
             //    Console.WriteLine(rnd.Next(0, 10));
             //}
 
-            string s = "123";
+            var a = getFigureMinMax();
 
-            Console.WriteLine(s[0]);
+            Console.WriteLine(a.minf);
 
             Console.ReadLine();
         }
